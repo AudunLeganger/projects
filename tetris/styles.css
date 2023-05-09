@@ -1,0 +1,9 @@
+.gameBoard {
+  border: 3px solid black;
+  display: block;
+  margin: 0 auto;
+}
+
+h1 {
+  text-align: center;
+}
