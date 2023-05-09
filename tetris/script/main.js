@@ -7,11 +7,14 @@ class Tetromino {
         this.color = "cyan";
         break;
       case "O":
+      case "o":
         this.color = "yellow";
         break;
     }
   }
 
+  // Spawns the tetromino at the top center of the game field
+  // returns pointer to itself
   spawnTetromino() {
     switch (this.type) {
       case "I":
@@ -30,18 +33,22 @@ class Tetromino {
     return this;
   }
 
+  // Draws out the tetromino according to it's own block coordinates
   drawTetromino(ctx) {
     for (let block of this.blocks) {
       block.drawBlock(ctx);
     }
   }
 
+  // Clears tetromino drawing, for use when tetromino position updates
   unDrawTetromino(ctx) {
     for (let block of this.blocks) {
       block.unDrawBlock(ctx);
     }
   }
 
+  // Moves a tetromino one step to the left/right, according to given argument
+  // Returns true upon successfull movement, false if movement would result in collision
   shiftTetromino(direction) {
     for (let block of this.blocks) {
       if (block.willCollide(direction)) {
@@ -54,10 +61,10 @@ class Tetromino {
     return true;
   }
 
+  // Increments the game state, moving the tetromino down, settling it if it collides
   nextStep(ctx) {
     if (this.willSettle()) {
       this.writeToGameGrid(gameGrid);
-      newTetromino();
     } else {
       this.unDrawTetromino(ctx);
       for (let block of this.blocks) {
@@ -67,6 +74,8 @@ class Tetromino {
     }
   }
 
+  // Checks wether or not the tetromino will collide when moved according to the given argument.
+  // Returns true if movement would result in collision, false otherwise
   willCollide(direction) {
     for (let block of this.blocks) {
       if (block.willCollide(direction)) {
@@ -77,6 +86,8 @@ class Tetromino {
     return false;
   }
 
+  // Checks wether or not the tetromino will settle when the game state increments (or user manually pushes piece down)
+  // Returns true if movement would result in the piece settling, false otherwise
   willSettle() {
     for (let block of this.blocks) {
       if (block.willSettle()) {
@@ -86,11 +97,23 @@ class Tetromino {
     return false;
   }
 
+  // Retrives the coordinates for all the tetromino's blocks, updating the gameGrid array to include these.
+  // Returns the updated grid
   writeToGameGrid(gameGrid) {
     for (let block of this.blocks) {
-      gameGrid[block.getY()][block.getX()] = 1;
+      gameGrid[block.getY()][block.getX()] = block;
     }
     return gameGrid;
+  }
+
+  getRows() {
+    let yValues = [];
+    for (let block of this.blocks) {
+      if (!yValues.includes(block.getY())) {
+        yValues.push(block.getY());
+      }
+    }
+    return yValues;
   }
 }
 
@@ -163,14 +186,16 @@ class Block {
 
   willCollide(direction) {
     if (direction === "left") {
-      return this.x - 1 < 0 || gameGrid[this.y][this.x - 1] !== 0;
+      return this.x - 1 < 0 || gameGrid[this.y][this.x - 1] !== null;
     } else if (direction === "right") {
-      return this.x + 1 >= Block.numCols || gameGrid[this.y][this.x + 1] !== 0;
+      return (
+        this.x + 1 >= Block.numCols || gameGrid[this.y][this.x + 1] !== null
+      );
     }
   }
 
   willSettle() {
-    return this.y + 1 >= ROWS || gameGrid[this.y + 1][this.x] !== 0;
+    return this.y + 1 >= ROWS || gameGrid[this.y + 1][this.x] !== null;
   }
 
   getX() {
@@ -194,7 +219,7 @@ const gameGrid = [];
 for (let i = 0; i < ROWS; i++) {
   gameGrid[i] = [];
   for (let j = 0; j < COLS; j++) {
-    gameGrid[i][j] = 0;
+    gameGrid[i][j] = null;
   }
 }
 
@@ -204,46 +229,58 @@ const ctx = canvas.getContext("2d");
 
 const boardHeight = (canvas.height = ROWS * blockSize);
 const boardWidth = (canvas.width = COLS * blockSize);
+let paused = false;
 Block.blockSize = blockSize;
 Block.numCols = COLS;
 
 let curTetromino;
-const shape1 = new Tetromino("I");
+const shape1 = new Tetromino("o");
 curTetromino = shape1.spawnTetromino(ctx);
 
 curTetromino.drawTetromino(ctx);
 
+let interval = setInterval(() => {
+  if (!paused) {
+    incrementGameState();
+  }
+}, 200);
+
 document.addEventListener("keydown", (event) => {
-  if (event.key.toLowerCase() === "s") {
-    curTetromino.nextStep(ctx);
+  console.log(event.key.toLowerCase());
+  if (event.key.toLowerCase() === "escape") {
+    paused = !paused;
+    printGrid(gameGrid);
+    return;
+  }
+  if (!paused) {
+    switch (event.key.toLowerCase()) {
+      case "a":
+        if (!curTetromino.willCollide("left")) {
+          curTetromino.unDrawTetromino(ctx);
+          curTetromino.shiftTetromino("left");
+          curTetromino.drawTetromino(ctx);
+        }
+        break;
+
+      case "d":
+        if (!curTetromino.willCollide("right")) {
+          curTetromino.unDrawTetromino(ctx);
+          curTetromino.shiftTetromino("right");
+          curTetromino.drawTetromino(ctx);
+        }
+        break;
+
+      case "s":
+        incrementGameState();
+        break;
+    }
   }
 });
+
 //
 //
 //
 // Prints a string representation of a 2-D array
-
-document.addEventListener("keydown", (event) => {
-  switch (event.key.toLowerCase()) {
-    case "a":
-      if (!curTetromino.willCollide("left")) {
-        curTetromino.unDrawTetromino(ctx);
-        curTetromino.shiftTetromino("left");
-        curTetromino.drawTetromino(ctx);
-      }
-
-      break;
-
-    case "d":
-      if (!curTetromino.willCollide("right")) {
-        curTetromino.unDrawTetromino(ctx);
-        curTetromino.shiftTetromino("right");
-        curTetromino.drawTetromino(ctx);
-      }
-
-      break;
-  }
-});
 
 function newTetromino() {
   console.log("entered spawn");
@@ -252,6 +289,7 @@ function newTetromino() {
   curTetromino.drawTetromino(ctx);
   return curTetromino;
 }
+
 function printGrid(grid) {
   let printString = "[\n";
   for (let i = 0; i < grid.length; i++) {
@@ -264,4 +302,71 @@ function printGrid(grid) {
   }
   printString += "]";
   console.log(printString);
+}
+
+function clearBlock(x, y) {
+  gameGrid[y][x] = null;
+}
+
+function clearGrid() {
+  for (let i = 0; i < gameGrid.length; i++) {
+    for (let j = 0; j < gameGrid[i].length; j++) {
+      gameGrid[i][j] = null;
+    }
+  }
+}
+
+function checkRow(y) {
+  for (let x = 0; x < gameGrid[y].length; x++) {
+    if (gameGrid[y][x] === null) {
+      return false;
+    }
+  }
+  console.log("row is full");
+  return true;
+}
+
+function clearRow(y) {
+  for (let x = 0; x < gameGrid[y].length; x++) {
+    console.log("trying to clear row");
+    gameGrid[y][x].unDrawBlock(ctx);
+    gameGrid[y][x] = null;
+  }
+}
+
+function shiftRowDown(y) {
+  for (let x = 0; x < gameGrid[y].length; x++) {
+    if (gameGrid[y][x] !== null) {
+      let curBlock = gameGrid[y][x];
+      curBlock.unDrawBlock(ctx);
+      curBlock.moveDown();
+      gameGrid[y][x] = null;
+      gameGrid[y + 1][x] = curBlock;
+      curBlock.drawBlock(ctx);
+    }
+  }
+}
+function shiftRowsDown(yStart) {
+  for (let y = yStart; y >= 0; y--) {
+    shiftRowDown(y);
+  }
+}
+
+function incrementGameState() {
+  const willSettle = curTetromino.willSettle(ctx);
+  if (!willSettle) {
+    curTetromino.nextStep(ctx);
+    return;
+  }
+  curTetromino.writeToGameGrid(gameGrid);
+  const affectedRows = curTetromino.getRows();
+  for (let i = 0; i < affectedRows.length; i++) {
+    if (checkRow(affectedRows[i])) {
+      console.log("AFFECTED ROWS", affectedRows);
+      clearRow(affectedRows[i]);
+      shiftRowsDown(affectedRows[i]);
+    }
+  }
+  curTetromino = new Tetromino("O").spawnTetromino(ctx);
+  curTetromino.drawTetromino(ctx);
 }
