@@ -1,16 +1,11 @@
 class Tetromino {
-  constructor(type) {
+  constructor(type, color, borderColor) {
     this.type = type;
     this.blocks = [];
-    switch (this.type) {
-      case "I":
-        this.color = "cyan";
-        break;
-      case "O":
-      case "o":
-        this.color = "yellow";
-        break;
-    }
+    this.pivotBlock = null;
+    this.rotationCounter = 0;
+    this.color = color;
+    this.borderColor = borderColor;
   }
 
   // Spawns the tetromino at the top center of the game field
@@ -19,17 +14,54 @@ class Tetromino {
     switch (this.type) {
       case "I":
         for (let i = 0; i < 4; i++) {
-          this.blocks[i] = new Block(4, i, this.color);
+          this.blocks[i] = new Block(4, i, this.color, this.borderColor);
         }
+        this.pivotBlock = this.blocks[1];
         break;
       case "o":
       case "O":
-        this.blocks[0] = new Block(4, 0, this.color);
-        this.blocks[1] = new Block(4, 1, this.color);
-        this.blocks[2] = new Block(5, 0, this.color);
-        this.blocks[3] = new Block(5, 1, this.color);
+        this.blocks[0] = new Block(4, 0, this.color, this.borderColor);
+        this.blocks[1] = new Block(4, 1, this.color, this.borderColor);
+        this.blocks[2] = new Block(5, 0, this.color, this.borderColor);
+        this.blocks[3] = new Block(5, 1, this.color, this.borderColor);
+        break;
+      case "T":
+        this.blocks[0] = new Block(4, 0, this.color, this.borderColor);
+        this.blocks[1] = new Block(5, 0, this.color, this.borderColor);
+        this.blocks[2] = new Block(6, 0, this.color, this.borderColor);
+        this.blocks[3] = new Block(5, 1, this.color, this.borderColor);
+        this.pivotBlock = this.blocks[1];
+        break;
+      case "S":
+        this.blocks[0] = new Block(4, 0, this.color, this.borderColor);
+        this.blocks[1] = new Block(5, 0, this.color, this.borderColor);
+        this.blocks[2] = new Block(5, 1, this.color, this.borderColor);
+        this.blocks[3] = new Block(6, 1, this.color, this.borderColor);
+        this.pivotBlock = this.blocks[1];
+        break;
+      case "Z":
+        this.blocks[0] = new Block(4, 1, this.color, this.borderColor);
+        this.blocks[1] = new Block(5, 1, this.color, this.borderColor);
+        this.blocks[2] = new Block(5, 0, this.color, this.borderColor);
+        this.blocks[3] = new Block(6, 0, this.color, this.borderColor);
+        this.pivotBlock = this.blocks[1];
+        break;
+      case "J":
+        this.blocks[0] = new Block(4, 0, this.color, this.borderColor);
+        this.blocks[1] = new Block(4, 1, this.color, this.borderColor);
+        this.blocks[2] = new Block(5, 1, this.color, this.borderColor);
+        this.blocks[3] = new Block(6, 1, this.color, this.borderColor);
+        this.pivotBlock = this.blocks[2];
+        break;
+      case "L":
+        this.blocks[0] = new Block(4, 1, this.color, this.borderColor);
+        this.blocks[1] = new Block(5, 1, this.color, this.borderColor);
+        this.blocks[2] = new Block(6, 1, this.color, this.borderColor);
+        this.blocks[3] = new Block(6, 0, this.color, this.borderColor);
+        this.pivotBlock = this.blocks[2];
         break;
     }
+    this.drawTetromino(ctx);
     return this;
   }
 
@@ -59,6 +91,70 @@ class Tetromino {
       block.shiftBlock(direction);
     }
     return true;
+  }
+
+  rotateLeft() {
+    const newBlockCoords = [];
+    for (let block of this.blocks) {
+      if (this.block === this.pivotBlock) {
+        continue;
+      }
+      const newCoords = this.calcNewBlockPos(
+        block,
+        this.rotationCounter,
+        "left"
+      );
+      newBlockCoords.push(newCoords);
+    }
+    for (let newCoords of newBlockCoords) {
+      const newX = newCoords[0];
+      const newY = newCoords[1];
+      try {
+        if (gameGrid[newY][newX] !== null) {
+          return false;
+        }
+      } catch (err) {
+        return false;
+      }
+    }
+    for (let i = 0; i < this.blocks.length; i++) {
+      if (this.blocks[i] === this.pivotBlock) {
+        continue;
+      }
+      this.blocks[i].unDrawBlock(ctx);
+      this.blocks[i].setX(newBlockCoords[i][0]);
+      this.blocks[i].setY(newBlockCoords[i][1]);
+      this.blocks[i].drawBlock(ctx);
+    }
+    return true;
+  }
+
+  calcNewBlockPos(block, rotationCounter, direction) {
+    const dx = block.getX() - this.pivotBlock.getX();
+    const dy = block.getY() - this.pivotBlock.getY();
+    let newX;
+    let newY;
+    if (direction === "left") {
+      switch (rotationCounter % 4) {
+        case 0:
+          newX = this.pivotBlock.getX() + dy;
+          newY = this.pivotBlock.getY() - dx;
+          break;
+        case 1:
+          newX = this.pivotBlock.getX() + dy;
+          newY = this.pivotBlock.getY() - dx;
+          break;
+        case 2:
+          newX = this.pivotBlock.getX() + dy;
+          newY = this.pivotBlock.getY() - dx;
+          break;
+        case 3:
+          newX = this.pivotBlock.getX() + dy;
+          newY = this.pivotBlock.getY() - dx;
+          break;
+      }
+    }
+    return [newX, newY];
   }
 
   // Increments the game state, moving the tetromino down, settling it if it collides
@@ -121,10 +217,11 @@ class Block {
   static blockSize;
   static numCols;
 
-  constructor(x, y, color) {
+  constructor(x, y, color, borderColor) {
     this.x = x;
     this.y = y;
     this.color = color;
+    this.borderColor = borderColor;
   }
 
   setSize(argBlockSize) {
@@ -142,7 +239,7 @@ class Block {
     );
 
     // Fill
-    ctx.fillStyle = "black";
+    ctx.fillStyle = this.borderColor;
     ctx.fill();
 
     ctx.beginPath();
@@ -205,6 +302,14 @@ class Block {
   getY() {
     return this.y;
   }
+
+  setX(newX) {
+    this.x = newX;
+  }
+
+  setY(newY) {
+    this.y = newY;
+  }
 }
 
 // Gamebaord properties
@@ -223,6 +328,26 @@ for (let i = 0; i < ROWS; i++) {
   }
 }
 
+const TETROMINOS = ["I", "J", "L", "O", "S", "T", "Z"];
+const COLORS = [
+  "#00FFFF",
+  "#0000FF",
+  "#FFA500",
+  "#FFFF00",
+  "#00FF00",
+  "#800080",
+  "#FF0000",
+];
+const OUTLINE_COLORS = [
+  "#00CCCC",
+  "#0000CC",
+  "#CC8400",
+  "#CCCC00",
+  "#00CC00",
+  "#660066",
+  "#CC0000",
+];
+
 // Canvas elements
 const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
@@ -233,12 +358,8 @@ let paused = false;
 Block.blockSize = blockSize;
 Block.numCols = COLS;
 
-let curTetromino;
-const shape1 = new Tetromino("o");
-curTetromino = shape1.spawnTetromino(ctx);
-
-curTetromino.drawTetromino(ctx);
-
+let curTetromino = generateTetromino();
+curTetromino.spawnTetromino(ctx);
 let interval = setInterval(() => {
   if (!paused) {
     incrementGameState();
@@ -270,6 +391,13 @@ document.addEventListener("keydown", (event) => {
         }
         break;
 
+      case "j":
+        curTetromino.rotateLeft();
+        break;
+
+      case "k":
+        break;
+
       case "s":
         incrementGameState();
         break;
@@ -282,12 +410,13 @@ document.addEventListener("keydown", (event) => {
 //
 // Prints a string representation of a 2-D array
 
-function newTetromino() {
-  console.log("entered spawn");
-  const tetromino = new Tetromino("O");
-  curTetromino = tetromino.spawnTetromino(ctx);
-  curTetromino.drawTetromino(ctx);
-  return curTetromino;
+function generateTetromino() {
+  const randomIndex = randomInt(0, 6);
+  return new Tetromino(
+    TETROMINOS[randomIndex],
+    COLORS[randomIndex],
+    OUTLINE_COLORS[randomIndex]
+  );
 }
 
 function printGrid(grid) {
@@ -295,7 +424,7 @@ function printGrid(grid) {
   for (let i = 0; i < grid.length; i++) {
     printString += "[";
     for (let j = 0; j < grid[i].length; j++) {
-      printString += `${grid[i][j]} `;
+      grid[i][j] === null ? (printString += "0 ") : (printString += "1 ");
     }
     printString = printString.slice(0, printString.length - 1);
     printString += "],\n";
@@ -362,11 +491,14 @@ function incrementGameState() {
   const affectedRows = curTetromino.getRows();
   for (let i = 0; i < affectedRows.length; i++) {
     if (checkRow(affectedRows[i])) {
-      console.log("AFFECTED ROWS", affectedRows);
       clearRow(affectedRows[i]);
       shiftRowsDown(affectedRows[i]);
     }
   }
-  curTetromino = new Tetromino("O").spawnTetromino(ctx);
-  curTetromino.drawTetromino(ctx);
+  curTetromino = generateTetromino();
+  curTetromino.spawnTetromino(ctx);
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1) + min);
 }
